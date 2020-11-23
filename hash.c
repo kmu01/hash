@@ -28,7 +28,21 @@ struct hash_iter{
 // Función de hashing, la versión mas simple es generar la clave segun el string, pero también es estupidamente ineficiente.
 // La idea es usar una de las 2 primeras listadas en:: www.cse.yorku.ca/~oz/hash.html
 size_t f_hash(char* str){
+ 	/* hola
 
+
+
+
+
+
+
+
+
+
+
+
+
+ 	que tal */
 }
 
 //Busca un nodo dentro de la tabla hash.
