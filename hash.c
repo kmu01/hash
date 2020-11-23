@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "hash.h"
 #include "lista.h"
-
+//Hola.
 // ********** Definiciones **********
 
 typedef struct nodo{
