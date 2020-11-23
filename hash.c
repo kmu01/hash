@@ -3,6 +3,8 @@
 #include "hash.h"
 #include "lista.h"
 
+// ********** Definiciones **********
+
 typedef struct nodo{
 	char* clave;
 	void* dato;
@@ -20,6 +22,20 @@ struct hash_iter{
 	size_t indice_actual;
 	const hash_t* hash;
 };
+
+// ********** Auxiliares **********
+
+// Función de hashing, la versión mas simple es generar la clave segun el string, pero también es estupidamente ineficiente.
+// La idea es usar una de las 2 primeras listadas en:: www.cse.yorku.ca/~oz/hash.html
+size_t f_hash(char* str){
+
+}
+
+//Busca un nodo dentro de la tabla hash.
+nodo_t* buscar_nodo(const hash_t* hash; char* clave);
+
+
+// ********** Primitivas **********
 
 hash_t *hash_crear(hash_destruir_dato_t destruir_dato);
 
@@ -61,19 +77,3 @@ size_t hash_cantidad(const hash_t *hash);
  */
 void hash_destruir(hash_t *hash);
 
-/* Iterador del hash */
-
-// Crea iterador
-hash_iter_t *hash_iter_crear(const hash_t *hash);
-
-// Avanza iterador
-bool hash_iter_avanzar(hash_iter_t *iter);
-
-// Devuelve clave actual, esa clave no se puede modificar ni liberar.
-const char *hash_iter_ver_actual(const hash_iter_t *iter);
-
-// Comprueba si terminó la iteración
-bool hash_iter_al_final(const hash_iter_t *iter);
-
-// Destruye iterador
-void hash_iter_destruir(hash_iter_t *iter);
