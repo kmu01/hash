@@ -1,17 +1,16 @@
+#include "hash.h"
+#include "lista.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "hash.h"
-#include "lista.h"
-
 // ********** Definiciones **********
 
 #define TAM_DEFAULT 101
 
-typedef struct nodo{
+typedef struct nodo_hash{
 	char* clave;
 	void* dato;
-} nodo_t;
+} nodo_hash_t;
 
 struct hash{
 	lista_t** listas;
@@ -51,8 +50,17 @@ static bool ubicar_listas(lista_t* lista){
 	return no_error;
 }
 
+static nodo_t* nodo_hash_crear(char* clave, void* dato){
+	nodo_hash_t* nodo = malloc(sizeof(nodo_hash_t));
+	if(!nodo){
+		return NULL;
+	}
+	nodo->clave = clave;
+	nodo->dato = dato;
+}
+
 //Busca un nodo dentro de la tabla hash.
-nodo_t* buscar_nodo(const hash_t* hash; char* clave);
+ static nodo_t* buscar_nodo(const hash_t* hash, char* clave, bool borrar);
 
 
 // ********** Primitivas **********
@@ -80,23 +88,35 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
  * Pre: La estructura hash fue inicializada
  * Post: Se almacenó el par (clave, dato)
  */
-bool hash_guardar(hash_t *hash, const char *clave, void *dato);
+bool hash_guardar(hash_t *hash, const char *clave, void *dato){
+	bool borrar = false;
+	nodo_hash_t* nodo = buscar_nodo(hash,clave,borrar);
+	if(nodo){
+		nodo->dato = dato;
+		return true;
+	}
+	nodo = nodo_hash_crear(clave,dato);
+	if(!nodo){
+		return false;
+	}
+	size_t pos = f_hash(clave) % hash->tam;
+	lista_insertar_ultimo(hash->listas[pos],nodo);
+	hash->cant++;
+	return true;
+}
 
-/* Borra un elemento del hash y devuelve el dato asociado.  Devuelve
+/* Borra un elemento del hash y devuelve el dato asociado. Devuelve
  * NULL si el dato no estaba.
  * Pre: La estructura hash fue inicializada
  * Post: El elemento fue borrado de la estructura y se lo devolvió,
  * en el caso de que estuviera guardado.
  */
 void *hash_borrar(hash_t *hash, const char *clave);
-
 /* Obtiene el valor de un elemento del hash, si la clave no se encuentra
  * devuelve NULL.
  * Pre: La estructura hash fue inicializada
  */
-void *hash_obtener(const hash_t *hash, const char *clave){
-
-}
+void *hash_obtener(const hash_t *hash, const char *clave);
 
 
 /* Determina si clave pertenece o no al hash.
@@ -130,7 +150,19 @@ void hash_destruir(hash_t *hash){
 /* Iterador del hash */
 
 // Crea iterador
-hash_iter_t *hash_iter_crear(const hash_t *hash);
+hash_iter_t *hash_iter_crear(const hash_t *hash){
+	hash_iter_t* iter = malloc(sizeof(hash_iter_t));
+	if(!iter){
+		return NULL;
+	}
+	iter->actual = hash->listas[0];
+	iter->hash = hash;
+	iter->lista_iter = lista_iter_crear(iter->actual);
+	if(!iter->lista_iter){
+		return NULL;
+	}
+	return iter;
+}
 
 // Avanza iterador
 bool hash_iter_avanzar(hash_iter_t *iter);
