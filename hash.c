@@ -47,7 +47,7 @@ static bool ubicar_listas(lista_t** listas){
 		if(!lista_a_insertar){
 			no_error = false;
 		}
-		listas[i] = lista_crear();
+		listas[i] = lista_a_insertar;
 	}
 	return no_error;
 }
