@@ -40,14 +40,14 @@ size_t f_hash(unsigned char *str){
 	return hash;
 }
 
-static bool ubicar_listas(lista_t* lista){
+static bool ubicar_listas(lista_t** listas){
 	bool no_error = true;
 	for(size_t i = 0; i < TAM_DEFAULT;i++){
 		lista_t* lista_a_insertar = lista_crear();
 		if(!lista_a_insertar){
 			no_error = false;
 		}
-		lista_insertar_ultimo(lista,lista_a_insertar);
+		listas[i] = lista_crear();
 	}
 	return no_error;
 }
@@ -63,7 +63,7 @@ static nodo_hash_t* nodo_hash_crear(const char* clave, void* dato){
 }
 
 //Busca un nodo dentro de la tabla hash.
-nodo_hash_t* buscar_nodo(hash_t *hash, const char *clave, bool borrar){
+nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
 	size_t pos = f_hash(clave) % hash->tam;
 	if (lista_esta_vacia(hash->listas[pos])){
 		return NULL;
@@ -159,7 +159,7 @@ bool hash_pertenece(const hash_t *hash, const char *clave){
 /* Devuelve la cantidad de elementos del hash.
  * Pre: La estructura hash fue inicializada
  */
-size_t hash_cantidad(const hash_t *hash){
+size_t hash_cantidad(hash_t *hash){
 	return hash->cant;
 }
 
@@ -191,9 +191,8 @@ void hash_destruir(hash_t *hash){
 bool iter_buscar_ocupado(hash_iter_t *iter){
 	while (iter->actual < iter->hash->tam){
 		if (!lista_esta_vacia(iter->hash->listas[iter->actual])){
-			iter->lista_iter->hash->listas[iter->actual];
-			iter->lista_iter->lista->actual = 0;
-			iter->lista_iter->lista->ant = NULL;
+			iter->lista_iter->actual = iter->hash->listas[iter->actual]->prim;
+			iter->lista_iter->ant = NULL;
 			return true;
 		}
 		iter->actual++;
