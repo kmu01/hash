@@ -4,12 +4,16 @@
 #include "hash.h"
 #include "lista.h"
 
+#define NO_BORRAR false
+#define BORRAR true
+
+
 // ********** Definiciones **********
 
-typedef struct nodo{
+typedef struct nodo_hash{
 	char* clave;
 	void* dato;
-} nodo_t;
+} nodo_hash_t;
 
 struct hash{
 	lista_t** listas;
@@ -36,6 +40,25 @@ size_t f_hash(char* str){
     return hash;
 }
 
+nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
+	size_t pos = f_hash(clave) % hash->tam;
+	if (lista_esta_vacia(hash->listas[pos])){
+		return NULL;
+	}
+	lista_iter_t* iter_lista = lista_iter_crear(hash->listas[pos]);
+	if (!iter_lista){
+		return NULL;
+	}
+	nodo_hash_t* nodo = lista_iter_ver_actual(iter_lista);
+	while (!lista_iter_al_final(iter_lista) && strcmp(nodo->clave, clave) != 0){
+		nodo = lista_iter_ver_actual(iter_lista);
+	}
+	if (borrar && nodo){
+		lista_iter_borrar(iter_lista);
+	}
+	lista_iter_destruir(iter_lista);
+	return nodo;	
+}
 
 // ********** Primitivas **********
 
@@ -47,45 +70,37 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato);
  * Post: Se almacenó el par (clave, dato)
  */
 bool hash_guardar(hash_t *hash, const char *clave, void *dato){
-	size_t pos = f_hash(clave) % hash->tam;
+	
 }
 
 /* Borra un elemento del hash y devuelve el dato asociado.  Devuelve
  * NULL si el dato no estaba.
  * Pre: La estructura hash fue inicializada
  * Post: El elemento fue borrado de la estructura y se lo devolvió,
- * en el caso de que estuviera guardado.
+ * En el caso de que estuviera guardado.
  */
-void *hash_borrar(hash_t *hash, const char *clave);
+void *hash_borrar(hash_t *hash, const char *clave){
+	nodo_hash_t* nodo = buscar_nodo(hash, clave, BORRAR);
+	if (!nodo) return NULL;
+	void* dato = nodo->dato;
+	hash->cant--;
+	free(nodo);
+	return dato;
+}
 
 /* Obtiene el valor de un elemento del hash, si la clave no se encuentra
  * devuelve NULL.
  * Pre: La estructura hash fue inicializada
  */
 void *hash_obtener(const hash_t *hash, const char *clave){
-	size_t pos = f_hash(clave) % hash->tam;
-	if (lista_esta_vacia(hash->listas[pos])){
-		return NULL;
-	}
-	lista_iter_t* iter_lista = lista_iter_crear(hash->listas[pos]);
-	if (!iter){
-		return NULL;
-	}
-	while (!lista_iter_al_final(iter_lista)){
-		if (strcmp((nodo_t)lista_iter_ver_actual(iter)->clave, clave) == 0){
-			lista_iter_destruir(iter_lista);
-			return (nodo_t)lista_iter_ver_actual(iter)->clave;
-		}
-	}
-	lista_iter_destruir(iter_lista);
-	return NULL;
+	return (nodo_hash_t*)buscar_nodo(hash, clave, NO_BORRAR)->clave;
 }
 
 /* Determina si clave pertenece o no al hash.
  * Pre: La estructura hash fue inicializada
  */
 bool hash_pertenece(const hash_t *hash, const char *clave){
-	return hash_obtener(hash, clave) != NULL;
+	return buscar_nodo(hash, clave, NO_BORRAR) != NULL;
 }
 
 /* Devuelve la cantidad de elementos del hash.
@@ -152,7 +167,7 @@ const char *hash_iter_ver_actual(const hash_iter_t *iter){
 	if (hash_iter_al_final(iter)){
 		return NULL;
 	} 
-	nodo_t* nodo = lista_iter_ver_actual(iter->lista_iter);
+	nodo_hash_t* nodo = lista_iter_ver_actual(iter->lista_iter);
 	return nodo.clave;
 }
 
