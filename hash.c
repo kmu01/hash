@@ -209,6 +209,7 @@ bool iter_buscar_ocupado(hash_iter_t *iter){
 		iter->actual++;
 	}
 	//Si no encuentra nada, simplemente se queda al final.
+	if (iter->lista_iter) lista_iter_destruir(iter->lista_iter);
 	iter->lista_iter = NULL;
 	return false;
 }
@@ -255,7 +256,7 @@ const char *hash_iter_ver_actual(const hash_iter_t *iter){
 // Comprueba si terminó la iteración
 bool hash_iter_al_final(const hash_iter_t *iter){
 	//Si el actual es igual al tamaño, se recorrieron todas las posiciones.
-	return iter->actual == iter->hash->tam || !hash_cantidad(iter->hash) || iter->lista_iter == NULL;;
+	return (iter->actual == iter->hash->tam && iter->lista_iter == NULL) || !hash_cantidad(iter->hash);
 }
 
 // Destruye iterador
