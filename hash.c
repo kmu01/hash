@@ -2,6 +2,7 @@
 #include "lista.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdbool.h>
 // ********** Definiciones **********
 
@@ -64,7 +65,10 @@ static nodo_hash_t* nodo_hash_crear(const char *clave, void* dato){
 
 //Busca un nodo dentro de la tabla hash.
 nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
-	size_t pos = f_hash(clave) % hash->tam;
+	if (hash_cantidad(hash) == 0){
+		return NULL;
+	}
+	size_t pos = f_hash(clave) % hash->tam;	
 	if (lista_esta_vacia(hash->listas[pos])){
 		return NULL;
 	}
@@ -72,10 +76,10 @@ nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
 	if (!iter_lista){
 		return NULL;
 	}
-	nodo_hash_t* nodo = lista_iter_ver_actual(iter_lista);
-	while (!lista_iter_al_final(iter_lista) && strcmp(nodo->clave, clave) != 0){
-		nodo = lista_iter_ver_actual(iter_lista);
+	while (!lista_iter_al_final(iter_lista) && strcmp(((nodo_hash_t*)lista_iter_ver_actual(iter_lista))->clave, clave) != 0){
+		lista_iter_avanzar(iter_lista);
 	}
+	nodo_hash_t* nodo = lista_iter_ver_actual(iter_lista);
 	if (borrar && nodo){
 		lista_iter_borrar(iter_lista);
 	}
@@ -117,7 +121,7 @@ bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 		return true;
 	}
 	nodo = nodo_hash_crear(clave,dato);
-	if(!nodo){
+	if(!nodo){		
 		return false;
 	}
 	size_t pos = f_hash(clave) % hash->tam;
@@ -145,7 +149,11 @@ void *hash_borrar(hash_t *hash, const char *clave){
  * Pre: La estructura hash fue inicializada
  */
 void *hash_obtener(const hash_t *hash, const char *clave){
-	return (nodo_hash_t*)buscar_nodo(hash, clave, NO_BORRAR)->clave;
+	nodo_hash_t* nodo = buscar_nodo(hash, clave, NO_BORRAR);
+	if (!nodo){
+		return NULL;
+	}
+	return nodo->dato;
 }
 
 
@@ -191,6 +199,10 @@ bool iter_buscar_ocupado(hash_iter_t *iter){
 	while (iter->actual < iter->hash->tam){
 		if (!lista_esta_vacia(iter->hash->listas[iter->actual])){
 			lista_iter_t* lista_iter_aux = lista_iter_crear(iter->hash->listas[iter->actual]);
+			if (!lista_iter_aux){
+				return false;
+			}
+			if (iter->lista_iter) lista_iter_destruir(iter->lista_iter);
 			iter->lista_iter = lista_iter_aux;
 			return true;
 		}
@@ -243,7 +255,7 @@ const char *hash_iter_ver_actual(const hash_iter_t *iter){
 // Comprueba si terminó la iteración
 bool hash_iter_al_final(const hash_iter_t *iter){
 	//Si el actual es igual al tamaño, se recorrieron todas las posiciones.
-	return iter->actual == iter->hash->tam || iter->lista_iter == NULL;
+	return iter->actual == iter->hash->tam || !hash_cantidad(iter->hash) || iter->lista_iter == NULL;;
 }
 
 // Destruye iterador

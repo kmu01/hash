@@ -67,13 +67,12 @@ static void prueba_hash_insertar()
     print_test("Prueba hash obtener clave2 es valor2", hash_obtener(hash, clave2) == valor2);
     print_test("Prueba hash obtener clave2 es valor2", hash_obtener(hash, clave2) == valor2);
     print_test("Prueba hash pertenece clave2, es true", hash_pertenece(hash, clave2));
-
     print_test("Prueba hash insertar clave3", hash_guardar(hash, clave3, valor3));
     print_test("Prueba hash la cantidad de elementos es 2", hash_cantidad(hash) == 2);
+    printf("%ld\n\n\n", hash_cantidad(hash));
     print_test("Prueba hash obtener clave3 es valor3", hash_obtener(hash, clave3) == valor3);
     print_test("Prueba hash obtener clave3 es valor3", hash_obtener(hash, clave3) == valor3);
     print_test("Prueba hash pertenece clave3, es true", hash_pertenece(hash, clave3));
-
     hash_destruir(hash);
 }
 
@@ -416,4 +415,21 @@ void pruebas_hash_catedra()
 void pruebas_volumen_catedra(size_t largo)
 {
     prueba_hash_volumen(largo, false);
+}
+
+int main(int argc, char *argv[]) {
+
+    if (argc > 1) {
+        // Asumimos que nos están pidiendo pruebas de volumen.
+        long largo = strtol(argv[1], NULL, 10);
+        pruebas_volumen_catedra((size_t) largo);
+
+        return failure_count() > 0;
+    }
+
+    printf("\n~~~ PRUEBAS CÁTEDRA ~~~\n");
+    pruebas_hash_catedra();
+
+
+    return failure_count() > 0;
 }
