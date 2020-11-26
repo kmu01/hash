@@ -199,15 +199,18 @@ void hash_destruir(hash_t *hash){
 
 
 // Busca una lista no vacia.
-bool iter_buscar_ocupado(hash_iter_t *iter){
+bool iter_buscar_ocupado(hash_iter_t *iter){	
 	while (iter->actual < iter->hash->tam){
 		if (!lista_esta_vacia(iter->hash->listas[iter->actual])){
 			lista_iter_t* lista_iter_aux = lista_iter_crear(iter->hash->listas[iter->actual]);
 			if (!lista_iter_aux){
 				return false;
 			}
-			if (iter->lista_iter) lista_iter_destruir(iter->lista_iter);
+			if (iter->lista_iter){
+				lista_iter_destruir(iter->lista_iter);
+			} 
 			iter->lista_iter = lista_iter_aux;
+			iter->actual++;
 			return true;
 		}
 		iter->actual++;
