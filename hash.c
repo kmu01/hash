@@ -117,6 +117,9 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
 bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	nodo_hash_t* nodo = buscar_nodo(hash,clave,NO_BORRAR);
 	if(nodo){
+		if (hash->destruir_dato){
+			hash->destruir_dato(nodo->dato);
+		}
 		nodo->dato = dato;
 		return true;
 	}
@@ -177,14 +180,15 @@ size_t hash_cantidad(const hash_t *hash){
  * Post: La estructura hash fue destruida
  */
 void hash_destruir(hash_t *hash){
-	size_t cont = 0;
 	for(size_t i = 0; i < hash->tam;i++){
-		if(lista_esta_vacia(hash->listas[cont])){
-			lista_destruir(hash->listas[cont],NULL);
-		} else{
-		lista_destruir(hash->listas[cont], hash->destruir_dato);
+		while (!lista_esta_vacia(hash->listas[i])){
+			nodo_hash_t* nodo = lista_borrar_primero(hash->listas[i]);
+			if (hash->destruir_dato){
+				hash->destruir_dato(nodo->dato);
+			}
+			free(nodo);
 		}
-		cont++;
+		lista_destruir(hash->listas[i],NULL);
 	}
 	free(hash->listas);
 	free(hash);

@@ -69,7 +69,6 @@ static void prueba_hash_insertar()
     print_test("Prueba hash pertenece clave2, es true", hash_pertenece(hash, clave2));
     print_test("Prueba hash insertar clave3", hash_guardar(hash, clave3, valor3));
     print_test("Prueba hash la cantidad de elementos es 2", hash_cantidad(hash) == 2);
-    printf("%ld\n\n\n", hash_cantidad(hash));
     print_test("Prueba hash obtener clave3 es valor3", hash_obtener(hash, clave3) == valor3);
     print_test("Prueba hash obtener clave3 es valor3", hash_obtener(hash, clave3) == valor3);
     print_test("Prueba hash pertenece clave3, es true", hash_pertenece(hash, clave3));
