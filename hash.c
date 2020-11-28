@@ -58,7 +58,7 @@ static nodo_hash_t* nodo_hash_crear(const char *clave, void* dato){
 	if(!nodo){
 		return NULL;
 	}
-	nodo->clave = (char*)clave;
+	nodo->clave = strdup(clave);
 	nodo->dato = dato;
 	return nodo;
 }
@@ -144,6 +144,7 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	if (!nodo) return NULL;
 	void* dato = nodo->dato;
 	hash->cant--;
+	free(nodo->clave);
 	free(nodo);
 	return dato;
 }
@@ -186,6 +187,7 @@ void hash_destruir(hash_t *hash){
 			if (hash->destruir_dato){
 				hash->destruir_dato(nodo->dato);
 			}
+			free(nodo->clave);
 			free(nodo);
 		}
 		lista_destruir(hash->listas[i],NULL);
