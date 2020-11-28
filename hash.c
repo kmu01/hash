@@ -6,6 +6,8 @@
 #include <stdbool.h>
 // ********** Definiciones **********
 
+#define FACTOR_REDIM 4.5
+#define REDIMENSION 2
 #define TAM_DEFAULT 101
 #define NO_BORRAR false
 #define BORRAR true
@@ -30,8 +32,8 @@ struct hash_iter{
 
 // ********** Auxiliares **********
 
-// Función de hashing, la versión mas simple es generar la clave segun el string, pero también es estupidamente ineficiente.
-// La idea es usar una de las 2 primeras listadas en:: www.cse.yorku.ca/~oz/hash.html
+// Función de hashing.
+// Usamos djb2, listado en: www.cse.yorku.ca/~oz/hash.html
 size_t f_hash(const char *str){
 	size_t hash = 5381;
     int c = 0;
@@ -41,9 +43,9 @@ size_t f_hash(const char *str){
 	return hash;
 }
 
-static bool ubicar_listas(lista_t** listas){
+static bool ubicar_listas(lista_t** listas, size_t tamanio){
 	bool no_error = true;
-	for(size_t i = 0; i < TAM_DEFAULT;i++){
+	for(size_t i = 0; i < tamanio;i++){
 		lista_t* lista_a_insertar = lista_crear();
 		if(!lista_a_insertar){
 			no_error = false;
@@ -87,7 +89,53 @@ nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
 	return nodo;	
 }
 
+//Destruye el arreglo de listas.
+void destruir_listas(lista_t** listas, size_t tam, hash_destruir_dato_t destruir_dato){
+	for(size_t i = 0; i < tam;i++){
+		while (!lista_esta_vacia(listas[i])){
+			nodo_hash_t* nodo = lista_borrar_primero(listas[i]);
+			if (destruir_dato){
+				destruir_dato(nodo->dato);
+			}
+			free(nodo->clave);
+			free(nodo);
+		}
+		lista_destruir(listas[i],NULL);
+	}
+	free(listas);
+}
 
+// Si hay demasiados elementos, redumensiona el hash.
+void redimensionar(hash_t* hash){
+	float factor = (float)hash->cant / (float)hash->tam;
+	if (factor < FACTOR_REDIM){
+		return;
+	}
+	size_t tam_nuevo = hash->cant * REDIMENSION;
+	lista_t** nuevo = malloc(sizeof(lista_t*)*tam_nuevo);
+	if (!nuevo){
+		return;
+	}
+	hash_iter_t* iter = hash_iter_crear(hash);
+	if (!iter){
+		free(nuevo);
+		return;
+	}
+	if(!ubicar_listas(nuevo, tam_nuevo)){
+		destruir_listas(nuevo, tam_nuevo, NULL);
+		return;
+	}
+	while (!hash_iter_al_final(iter)){
+		nodo_hash_t* nodo = lista_iter_ver_actual(iter->lista_iter);
+		size_t pos = f_hash(nodo->clave) % tam_nuevo;
+		lista_insertar_ultimo(nuevo[pos], nodo);
+		hash_iter_avanzar(iter);
+	}
+	destruir_listas(hash->listas, hash->tam, NULL);
+	hash->listas = nuevo;
+	hash->tam = tam_nuevo;
+	hash_iter_destruir(iter);
+}
 
 // ********** Primitivas **********
 
@@ -103,7 +151,7 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
 	if(!hash->listas){
 		return NULL;
 	}
-	if(!ubicar_listas(hash->listas)){
+	if(!ubicar_listas(hash->listas, hash->tam)){
 		return NULL;
 	}
 	return hash;
@@ -130,6 +178,7 @@ bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	size_t pos = f_hash(clave) % hash->tam;
 	lista_insertar_ultimo(hash->listas[pos], nodo);
 	hash->cant++;
+	redimensionar(hash);
 	return true;
 }
 
@@ -181,18 +230,7 @@ size_t hash_cantidad(const hash_t *hash){
  * Post: La estructura hash fue destruida
  */
 void hash_destruir(hash_t *hash){
-	for(size_t i = 0; i < hash->tam;i++){
-		while (!lista_esta_vacia(hash->listas[i])){
-			nodo_hash_t* nodo = lista_borrar_primero(hash->listas[i]);
-			if (hash->destruir_dato){
-				hash->destruir_dato(nodo->dato);
-			}
-			free(nodo->clave);
-			free(nodo);
-		}
-		lista_destruir(hash->listas[i],NULL);
-	}
-	free(hash->listas);
+	destruir_listas(hash->listas, hash->tam, hash->destruir_dato);
 	free(hash);
 }
 
@@ -203,7 +241,7 @@ void hash_destruir(hash_t *hash){
 // Busca una lista no vacia.
 bool iter_buscar_ocupado(hash_iter_t *iter){	
 	while (iter->actual < iter->hash->tam){
-		if (!lista_esta_vacia(iter->hash->listas[iter->actual])){
+		if (!lista_esta_vacia(iter->hash->listas[iter->actual]) && lista_largo(iter->hash->listas[iter->actual]) < 5){
 			lista_iter_t* lista_iter_aux = lista_iter_crear(iter->hash->listas[iter->actual]);
 			if (!lista_iter_aux){
 				return false;
@@ -275,3 +313,4 @@ void hash_iter_destruir(hash_iter_t *iter){
 	}
 	free(iter);
 }
+

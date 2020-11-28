@@ -203,7 +203,7 @@ static void prueba_hash_valor_null()
     print_test("Prueba hash pertenece clave vacia, es true", hash_pertenece(hash, clave));
     print_test("Prueba hash borrar clave vacia, es valor NULL", hash_borrar(hash, clave) == valor);
     print_test("Prueba hash la cantidad de elementos es 0", hash_cantidad(hash) == 0);
-
+       
     hash_destruir(hash);
 }
 
@@ -225,7 +225,7 @@ static void prueba_hash_volumen(size_t largo, bool debug)
         ok = hash_guardar(hash, claves[i], valores[i]);
         if (!ok) break;
     }
-
+    
     if (debug) print_test("Prueba hash almacenar muchos elementos", ok);
     if (debug) print_test("Prueba hash la cantidad de elementos es correcta", hash_cantidad(hash) == largo);
 
@@ -239,7 +239,7 @@ static void prueba_hash_volumen(size_t largo, bool debug)
 
     if (debug) print_test("Prueba hash pertenece y obtener muchos elementos", ok);
     if (debug) print_test("Prueba hash la cantidad de elementos es correcta", hash_cantidad(hash) == largo);
-
+ 
     /* Verifica que borre y devuelva los valores correctos */
     for (size_t i = 0; i < largo; i++) {
         ok = hash_borrar(hash, claves[i]) == valores[i];
@@ -251,6 +251,7 @@ static void prueba_hash_volumen(size_t largo, bool debug)
 
     /* Destruye el hash y crea uno nuevo que sí libera */
     hash_destruir(hash);
+
     hash = hash_crear(free);
 
     /* Inserta 'largo' parejas en el hash */
