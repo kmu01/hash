@@ -1,10 +1,13 @@
+
 #include "hash.h"
 #include "lista.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdbool.h>
 // ********** Definiciones **********
 
+#define LIMITE 5
 #define TAM_DEFAULT 101
 #define NO_BORRAR false
 #define BORRAR true
@@ -29,20 +32,21 @@ struct hash_iter{
 
 // ********** Auxiliares **********
 
-// Función de hashing, la versión mas simple es generar la clave segun el string, pero también es estupidamente ineficiente.
-// La idea es usar una de las 2 primeras listadas en:: www.cse.yorku.ca/~oz/hash.html
-size_t f_hash(unsigned char *str){
+// Función de hashing.
+// Usamos djb2, listado en: www.cse.yorku.ca/~oz/hash.html
+size_t f_hash(const char *str){
+	if(!strlen(str))return 0;
 	size_t hash = 5381;
-    int c;
+    int c = 0;
     while (c == *str++){
         hash = ((hash << 5) + hash) + c;   //hash * 33 + c
 	}
 	return hash;
 }
 
-static bool ubicar_listas(lista_t** listas){
+static bool ubicar_listas(lista_t** listas, size_t tamanio){
 	bool no_error = true;
-	for(size_t i = 0; i < TAM_DEFAULT;i++){
+	for(size_t i = 0; i < tamanio;i++){
 		lista_t* lista_a_insertar = lista_crear();
 		if(!lista_a_insertar){
 			no_error = false;
@@ -52,19 +56,22 @@ static bool ubicar_listas(lista_t** listas){
 	return no_error;
 }
 
-static nodo_hash_t* nodo_hash_crear(const char* clave, void* dato){
+static nodo_hash_t* nodo_hash_crear(const char *clave, void* dato){
 	nodo_hash_t* nodo = malloc(sizeof(nodo_hash_t));
 	if(!nodo){
 		return NULL;
 	}
-	nodo->clave = clave;
+	nodo->clave = strdup(clave);
 	nodo->dato = dato;
 	return nodo;
 }
 
 //Busca un nodo dentro de la tabla hash.
 nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
-	size_t pos = f_hash(clave) % hash->tam;
+	if (hash_cantidad(hash) == 0){
+		return NULL;
+	}
+	size_t pos = f_hash(clave) % hash->tam;	
 	if (lista_esta_vacia(hash->listas[pos])){
 		return NULL;
 	}
@@ -72,10 +79,10 @@ nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
 	if (!iter_lista){
 		return NULL;
 	}
-	nodo_hash_t* nodo = lista_iter_ver_actual(iter_lista);
-	while (!lista_iter_al_final(iter_lista) && strcmp(nodo->clave, clave) != 0){
-		nodo = lista_iter_ver_actual(iter_lista);
+	while (!lista_iter_al_final(iter_lista) && strcmp(((nodo_hash_t*)lista_iter_ver_actual(iter_lista))->clave, clave) != 0){
+		lista_iter_avanzar(iter_lista);
 	}
+	nodo_hash_t* nodo = lista_iter_ver_actual(iter_lista);
 	if (borrar && nodo){
 		lista_iter_borrar(iter_lista);
 	}
@@ -83,7 +90,59 @@ nodo_hash_t* buscar_nodo(const hash_t *hash, const char *clave, bool borrar){
 	return nodo;	
 }
 
+//Destruye el arreglo de listas.
+static void destruir_listas(lista_t** listas, size_t tam, hash_destruir_dato_t destruir_dato){
+	for(size_t i = 0; i < tam;i++){
+		while (!lista_esta_vacia(listas[i])){
+			nodo_hash_t* nodo = lista_borrar_primero(listas[i]);
+			if (destruir_dato){
+				destruir_dato(nodo->dato);
+			}
+			free(nodo->clave);
+			free(nodo);
+		}
+		lista_destruir(listas[i],NULL);
+	}
+	free(listas);
+}
 
+// Si hay demasiados elementos, redumensiona el hash.
+void redimensionar(hash_t* hash){
+	bool redimension = true;
+	for(size_t i = 0; i < hash->tam; i++){
+		if(lista_largo(hash->listas[i]) != 5){
+			redimension = false;
+			break;
+		}
+	}
+	if(redimension){
+		size_t factor = (size_t)(hash->cant/hash->tam);
+		size_t tam_nuevo = hash->tam * factor ;
+		lista_t** nuevo = malloc(sizeof(lista_t*) * tam_nuevo);
+		if (!nuevo){
+			return;
+		}
+		hash_iter_t* iter = hash_iter_crear(hash);
+		if (!iter){
+			free(nuevo);
+			return;
+		}
+		if(!ubicar_listas(nuevo, tam_nuevo)){
+			destruir_listas(nuevo, tam_nuevo, NULL);
+			return;
+		}
+		while (!hash_iter_al_final(iter)){
+			nodo_hash_t* nodo = lista_iter_ver_actual(iter->lista_iter);
+			size_t pos = f_hash(nodo->clave) % tam_nuevo;
+			lista_insertar_ultimo(nuevo[pos], nodo);
+			hash_iter_avanzar(iter);
+		}
+		destruir_listas(hash->listas, hash->tam, NULL);
+		hash->listas = nuevo;
+		hash->tam = tam_nuevo;
+		hash_iter_destruir(iter);
+	}
+}
 
 // ********** Primitivas **********
 
@@ -99,7 +158,7 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
 	if(!hash->listas){
 		return NULL;
 	}
-	if(!ubicar_listas(hash->listas)){
+	if(!ubicar_listas(hash->listas, hash->tam)){
 		return NULL;
 	}
 	return hash;
@@ -113,15 +172,27 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
 bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	nodo_hash_t* nodo = buscar_nodo(hash,clave,NO_BORRAR);
 	if(nodo){
+		if (hash->destruir_dato){
+			hash->destruir_dato(nodo->dato);
+		}
 		nodo->dato = dato;
 		return true;
 	}
 	nodo = nodo_hash_crear(clave,dato);
-	if(!nodo){
+	if(!nodo){		
 		return false;
 	}
 	size_t pos = f_hash(clave) % hash->tam;
-	lista_insertar_ultimo(hash->listas[pos],nodo);
+	size_t i = lista_largo(hash->listas[pos]);
+	while(i == LIMITE){
+		pos++;
+		if(pos == hash->tam){
+			pos = 0;
+		}
+		i = lista_largo(hash->listas[pos]);
+	}
+	lista_insertar_ultimo(hash->listas[pos], nodo);
+	redimensionar(hash);
 	hash->cant++;
 	return true;
 }
@@ -137,6 +208,7 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	if (!nodo) return NULL;
 	void* dato = nodo->dato;
 	hash->cant--;
+	free(nodo->clave);
 	free(nodo);
 	return dato;
 }
@@ -145,7 +217,11 @@ void *hash_borrar(hash_t *hash, const char *clave){
  * Pre: La estructura hash fue inicializada
  */
 void *hash_obtener(const hash_t *hash, const char *clave){
-	return (nodo_hash_t*)buscar_nodo(hash, clave, NO_BORRAR)->clave;
+	nodo_hash_t* nodo = buscar_nodo(hash, clave, NO_BORRAR);
+	if (!nodo){
+		return NULL;
+	}
+	return nodo->dato;
 }
 
 
@@ -159,7 +235,7 @@ bool hash_pertenece(const hash_t *hash, const char *clave){
 /* Devuelve la cantidad de elementos del hash.
  * Pre: La estructura hash fue inicializada
  */
-size_t hash_cantidad(hash_t *hash){
+size_t hash_cantidad(const hash_t *hash){
 	return hash->cant;
 }
 
@@ -169,16 +245,7 @@ size_t hash_cantidad(hash_t *hash){
  * Post: La estructura hash fue destruida
  */
 void hash_destruir(hash_t *hash){
-	size_t cont = 0;
-	for(size_t i = 0; i < hash->tam;i++){
-		if(lista_esta_vacia(hash->listas[cont])){
-			lista_destruir(hash->listas[cont],NULL);
-		} else{
-		lista_destruir(hash->listas[cont], hash->destruir_dato);
-		}
-		cont++;
-	}
-	free(hash->listas);
+	destruir_listas(hash->listas, hash->tam, hash->destruir_dato);
 	free(hash);
 }
 
@@ -186,20 +253,27 @@ void hash_destruir(hash_t *hash){
 /* Iterador del hash */
 
 
-// auxiliares
-
-bool iter_buscar_ocupado(hash_iter_t *iter){
+// Busca una lista no vacia.
+bool iter_buscar_ocupado(hash_iter_t *iter){	
 	while (iter->actual < iter->hash->tam){
-		if (!lista_esta_vacia(iter->hash->listas[iter->actual])){
-			iter->lista_iter->actual = iter->hash->listas[iter->actual]->prim;
-			iter->lista_iter->ant = NULL;
+		if (!lista_esta_vacia(iter->hash->listas[iter->actual]) && lista_largo(iter->hash->listas[iter->actual]) < 5){
+			lista_iter_t* lista_iter_aux = lista_iter_crear(iter->hash->listas[iter->actual]);
+			if (!lista_iter_aux){
+				return false;
+			}
+			if (iter->lista_iter){
+				lista_iter_destruir(iter->lista_iter);
+			} 
+			iter->lista_iter = lista_iter_aux;
+			iter->actual++;
 			return true;
 		}
 		iter->actual++;
 	}
 	//Si no encuentra nada, simplemente se queda al final.
+	if (iter->lista_iter) lista_iter_destruir(iter->lista_iter);
 	iter->lista_iter = NULL;
-	return true;
+	return false;
 }
 
 // Crea iterador
@@ -213,6 +287,9 @@ hash_iter_t *hash_iter_crear(const hash_t *hash){
 	iter->lista_iter = lista_iter_crear(iter->hash->listas[0]);
 	if(!iter->lista_iter){
 		return NULL;
+	}
+	if (hash_cantidad(hash) != 0){
+		iter_buscar_ocupado(iter);
 	}
 	return iter;
 }
@@ -241,7 +318,7 @@ const char *hash_iter_ver_actual(const hash_iter_t *iter){
 // Comprueba si terminó la iteración
 bool hash_iter_al_final(const hash_iter_t *iter){
 	//Si el actual es igual al tamaño, se recorrieron todas las posiciones.
-	return iter->actual == iter->hash->tam;
+	return (iter->actual == iter->hash->tam && iter->lista_iter == NULL) || !hash_cantidad(iter->hash);
 }
 
 // Destruye iterador
